@@ -9,7 +9,7 @@ function Get-MWADataSet{
         [String[]] $Destination
     )
 
-    $tcptest = Test-PsNetTping -Destination $Destination -CommonTcpPort HTTPS -MaxTimeout 200 -MinTimeout 10
+    $tcptest = Test-PsNetTping -Destination $Destination -CommonTcpPort HTTPS -MaxTimeout 1000 -MinTimeout 10
     $array = foreach($tping in $tcptest){
         $nslookup = Test-PsNetDig -Destination $tping.Destination
         [PSCustomObject]@{
@@ -44,8 +44,9 @@ function Format-MWADataSet{
 
     $array = foreach ($item in $Object) {
         [pscustomobject]@{
-            Name   = $item.Tcpdestination
-            TimeMS = $item.TcpTimeMS
+            Name      = $item.Tcpdestination
+            TcpTimeMS = $item.TcpTimeMS
+            DigTimeMS = $item.DigTimeMS
         }
     }
     return $array
@@ -73,17 +74,19 @@ $HTML = html {
         Write-PSHTMLAsset -Name Chartjs
 
         div -Class "container" {
+
             p -Class "border" {
                 h1 "Combined PSHTML and PsNetTools report"
             }
+
         }
     } 
 
     body{
 
-        $test = Get-MWADataSet -Destination 'xing.de','bing.com','swiss.cj','sbb.ch','gkb.ch'
+        $test = Get-MWADataSet -Destination 'xing.de','xing.de','bing.com','swiss.ch','sbb.ch','sbb.ch','sbb.ch','my.ch'
         $test | ForEach-Object {
-            $total += $_.TcpTimeMs
+            $total += ($_.TcpTimeMs) + ($_.DigTimeMs)
         }
 
         div -Class "container" {
@@ -93,83 +96,85 @@ $HTML = html {
             }
 
             p {
-                h2 "Summary"
+                h2 "PsNetTools summary"
             }
 
-            div -class "container" {
-                div -Class "row align-items-center" {
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $PieCanvasID {}
-                    }
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $BarCanvasID {}
-                    }
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $DoughnutCanvasID {}
-                    }
+            div -Class "row align-items-center" {
+
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $PieCanvasID {}
                 }
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $BarCanvasID {}
+                }
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $DoughnutCanvasID {}
+                }
+
             }
 
             script -content {
 
                 $data   = $test | Group-Object TcpDestination
-                $counts = $data | ForEach-Object {$_.Count}
-                $labels = $data.Name
+                $yaxis  = $data | ForEach-Object {$_.Count}
+                $xaxis  = $data.Name
                 $colors = @("yellow","red","green","orange","blue")
                 
-                $dsp1   = New-PSHTMLChartPieDataSet -Data $counts -BackgroundColor $colors
-                New-PSHTMLChart -type pie -DataSet $dsp1 -title "Count of Tcp Tests" -Labels $labels -CanvasID $PieCanvasID 
+                $dsp1   = New-PSHTMLChartPieDataSet -Data $yaxis -BackgroundColor $colors
+                New-PSHTMLChart -type pie -DataSet $dsp1 -title "Count of Tcp Tests" -Labels $xaxis -CanvasID $PieCanvasID 
 
                 $data   = Format-MWADataSet -Object $test #| Group-Object TimeMs
-                $counts = $data.TimeMs
-                $labels = $data.Name
-
-                $dsb1 = New-PSHTMLChartBarDataSet -Data $counts -label "TimeMs" -backgroundColor 'blue' -hoverBackgroundColor 'red' -borderColor 'red' -hoverBorderColor 'red'
-                New-PSHTMLChart -type bar -DataSet $dsb1 -title "TimeMs of Tcp Results" -Labels $labels -CanvasID $BarCanvasID 
+                $yaxis  = $data.TcpTimeMs
+                $xaxis  = $data.Name
+                $dsb1 = New-PSHTMLChartBarDataSet -Data $yaxis -label "TcpTimeMs" -backgroundColor 'blue' -hoverBackgroundColor 'magenta' -borderColor 'black' -hoverBorderColor 'black'
+                
+                $yaxis  = $data.DigTimeMs
+                $xaxis  = $data.Name
+                $dsb2 = New-PSHTMLChartBarDataSet -Data $yaxis -label "DigTimeMs" -backgroundColor 'green' -hoverBackgroundColor 'red' -borderColor 'black' -hoverBorderColor 'black'
+                
+                New-PSHTMLChart -type bar -DataSet @($dsb1, $dsb2) -title "Time in milliseconds" -Labels $xaxis -CanvasID $BarCanvasID 
 
                 $data   = $test | Group-Object TcpStatusDescription
-                $counts = $data | ForEach-Object {$_.Count}
-                $labels = $data.Name
-                $colors = @("green","yellow", "red")
+                $yaxis  = $data | ForEach-Object {$_.Count}
+                $xaxis  = $data.Name
+                $colors = @("CYAN","MAGENTA","YELLOW ","BLACK")
 
-                $dsd1 = New-PSHTMLChartDoughnutDataSet -Data $counts -backgroundcolor $colors -hoverbackgroundColor $Colors
-                New-PSHTMLChart -Type doughnut -DataSet $dsd1 -title "Amount of Tcp Results" -Labels $labels -CanvasID $DoughnutCanvasID 
+                $dsd1 = New-PSHTMLChartDoughnutDataSet -Data $yaxis -backgroundcolor $colors -hoverbackgroundColor $Colors
+                New-PSHTMLChart -Type doughnut -DataSet $dsd1 -title "Amount of Tcp Results" -Labels $xaxis -CanvasID $DoughnutCanvasID 
 
             }
         
             p {
-                h2 "Details"
+                h2 "PsNetTools details"
             }
 
-            div {
+            Table -Class "table table-responsive table-sm table-hover" -content {
 
-                Table -Class "table table-responsive table-sm table-hover" -content {
+                Thead -Class "thead-dark" {
 
-                    Thead -Class "thead-dark" {
+                    Th {"TimeStamp"}
+                    Th {"Tcp-/Dig Test"}
+                    Th {"TcpPort"}
+                    Th {"Target"}
+                    Th {"IpV4Address"}
+                    Th {"IpV6Address"}
+                    Th {"StatusDescription"}
+                    Th {"TcpTimeMs"}
+                    Th {"DigTimeMs"}
 
-                        Th {"TimeStamp"}
-                        Th {"TcpSucceeded"}
-                        Th {"TcpPort"}
-                        Th {"Target"}
-                        Th {"IpV4Address"}
-                        Th {"IpV6Address"}
-                        Th {"StatusDescription"}
-                        Th {"MinTimeout"}
-                        Th {"MaxTimeout"}
-                        Th {"TimeMs"}
+                }
 
-                    }
+                Tbody {
 
-                    Tbody {
+                    $test | Sort-Object TcpTimeMS -Descending | ForEach-Object {
 
-                        $test | Sort-Object TcpTimeMS -Descending | ForEach-Object {
-
-                            tr {
-                                td {$_.TcpTimeStamp}
-                                td {$_.TcpSucceeded}
-                                td {$_.TcpPort}
-                                td {$_.TcpDestination}
-                                td {
+                        tr {
+                            td {$_.TcpTimeStamp}
+                            td {"$($_.TcpSucceeded)/$($_.DigSucceeded)"}
+                            td {$_.TcpPort}
+                            td {$_.TcpDestination}
+                            td {
+                                if($_.DigSucceeded){
                                     if($_.DigIpV4Address){
                                         foreach($item in $_.DigIpV4Address){
                                             $output += "$($item), "
@@ -177,28 +182,29 @@ $HTML = html {
                                         if($output.EndsWith(', ')){$output.TrimEnd(', ')}
                                     }
                                 }
-                                td {
+                                else{'Dig Test failed'}
+                            }
+                            td {
+                                if($_.DigSucceeded){
                                     if($_.DigIpV6Address){
                                         $_.DigIpV6Address
                                     }
                                 }
-                                td {$_.TcpStatusDescription}
-                                td {$_.TcpMinTimeout}
-                                td {$_.TcpMaxTimeout}
-                                td {$_.TcpTimeMs}
+                                else{'Dig Test failed'}
                             }
-
+                            td {$_.TcpStatusDescription}
+                            td {$_.TcpTimeMs}
+                            td {$_.DigTimeMs}
                         }
 
                     }
 
-                    #ConvertTo-PSHTMLtable -Object $process
                 }
 
-                p -Class "font-weight-bold" {
-                    "The query for these $($test.count) targets took a total of {0} milliseconds." -f ($total)
-                }
+            }
 
+            p -Class "font-weight-bold" {
+                "The query for these {0} targets took a total of {1} milliseconds." -f $($test.count), $($total)
             }
 
         }

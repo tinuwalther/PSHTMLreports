@@ -78,17 +78,15 @@ $HTML = html {
                 h2 "Summary"
             }
 
-            div -class "container" {
-                div -Class "row align-items-center" {
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $PieCanvasID {}
-                    }
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $BarCanvasID {}
-                    }
-                    div -Class "col-sm" {
-                        canvas -Height 300px -Width 300px -Id $DoughnutCanvasID {}
-                    }
+            div -Class "row align-items-center" {
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $PieCanvasID {}
+                }
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $BarCanvasID {}
+                }
+                div -Class "col-sm" {
+                    canvas -Height 300px -Width 300px -Id $DoughnutCanvasID {}
                 }
             }
 
@@ -118,45 +116,40 @@ $HTML = html {
                 h2 "Details"
             }
 
-            div {
+            Table -Class "table table-responsive table-sm table-hover" -content {
 
-                Table -Class "table table-responsive table-sm table-hover" -content {
+                Thead -Class "thead-dark" {
 
-                    Thead -Class "thead-dark" {
+                    Th {"PID"}
+                    Th {"Name"}
+                    Th {"Path"}
+                    Th {"StartTime"}
+                    Th {"Commit (KB)"}
+                    Th {"Working Set (KB)"}
 
-                        Th {"PID"}
-                        Th {"Name"}
-                        Th {"Path"}
-                        Th {"StartTime"}
-                        Th {"Commit (KB)"}
-                        Th {"Working Set (KB)"}
+                }
 
-                    }
+                Tbody {
 
-                    Tbody {
+                    Format-MWADataSet -process $process | ForEach-Object {
 
-                        Format-MWADataSet -process $process | ForEach-Object {
-
-                            tr {
-                                td {$_.PID}
-                                td {$_.Name}
-                                td {$_.Path}
-                                td {$_.StartTime}
-                                td {"{0:N0}" -f ($_.PrivateMemorySize64KB)}
-                                td {"{0:N0}" -f ($_.WorkingSet64KB)}
-                            }
-
+                        tr {
+                            td {$_.PID}
+                            td {$_.Name}
+                            td {$_.Path}
+                            td {$_.StartTime}
+                            td {"{0:N0}" -f ($_.PrivateMemorySize64KB)}
+                            td {"{0:N0}" -f ($_.WorkingSet64KB)}
                         }
 
                     }
 
-                    #ConvertTo-PSHTMLtable -Object $process
                 }
 
-                p -Class "font-weight-bold" {
-                    "This $($process.count) processes use {0:N0} MB Memory" -f ([math]::Round(($total)/1mb))
-                }
+            }
 
+            p -Class "font-weight-bold" {
+                "This {0} processes use {1:N0} MB Memory" -f $($process.count), ([math]::Round(($total)/1mb))
             }
 
         }
