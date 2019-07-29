@@ -2,6 +2,17 @@
     https://getbootstrap.com/
 #>
 
+#region Modules
+if(-not(Get-Module -Name PSHTML)){
+    Import-Module PSHTML
+}
+
+if(-not(Get-Module -Name PsNetTools)){
+    Import-Module PsNetTools
+}
+#endregion
+
+#region Data
 function Get-MWADataSet{
     [CmdletBinding()]
     param(
@@ -52,23 +63,65 @@ function Format-MWADataSet{
     return $array
 }
 
-if(-not(Get-Module -Name PSHTML)){
-    Import-Module PSHTML
-}
+$test = Get-MWADataSet -Destination 'xing.de','xing.de','bing.com','swiss.ch','sbb.ch','sbb.ch','sbb.ch','my.ch'
+#endregion
 
-if(-not(Get-Module -Name PsNetTools)){
-    Import-Module PsNetTools
-}
+#region Variables
+$PieCanvasID         = "piecanvas"
+$DoughnutCanvasID    = "Doughnutcanvas"
+$BarCanvasID         = "barcanvas"
+#endregion
 
-$PieCanvasID      = "piecanvas"
-$DoughnutCanvasID = "Doughnutcanvas"
-$BarCanvasID      = "barcanvas"
+#region header
+$HeaderTitle        = "PSHTML-PsNetTools"
+$HeaderCaption1     = "Combined PSHTML and PsNetTools report"
+#endregion
+
+#region body
+$BodyDescription    = "List some result from PsNetTools queries"
+#endregion
+
+#region diagrams
+$BodyCaptionDiagram = "PsNetTools summary"
+
+#diagram left
+$DiagramTitleLeft = "Count of Tcp Tests"
+$DiagramLeft      = $test | Group-Object TcpDestination
+$yaxisleft        = $DiagramLeft | ForEach-Object {$_.Count}
+$xaxisleft        = $DiagramLeft.Name
+$colorsleft       = @("yellow","red","green","orange","blue")
+
+#diagram middle
+$DiagramTitleMiddle = "Time in milliseconds"
+$DiagramMiddle      = Format-MWADataSet -Object $test #| Group-Object TimeMs
+$LabelMiddle1       = "TcpTimeMs"
+$yaxisMiddle1       = $DiagramMiddle.TcpTimeMs
+$LabelMiddle2       = "DigTimeMs"
+$yaxisMiddle2       = $DiagramMiddle.DigTimeMs
+$xaxisMiddle        = $DiagramMiddle.Name
+
+#diagram right
+$DiagramTitleRight = "Count of Tcp Tests"
+$DiagramRight      = $test | Group-Object TcpStatusDescription
+$yaxisRight        = $DiagramRight | ForEach-Object {$_.Count}
+$xaxisRight        = $DiagramRight.Name
+$colorsRight       = @("CYAN","MAGENTA","YELLOW ","BLACK")
+
+#endregion
+
+#region table
+$BodyCaptionTable   = "PsNetTools details"
+#endregion
+
+#region footer
+#endregion
+
 
 $HTML = html {
 
     head{
 
-        title "PSHTML-PsNetTools"
+        title $HeaderTitle
         Write-PSHTMLAsset -Name Jquery
         Write-PSHTMLAsset -Name BootStrap
         Write-PSHTMLAsset -Name Chartjs
@@ -76,7 +129,7 @@ $HTML = html {
         div -Class "container" {
 
             p -Class "border" {
-                h1 "Combined PSHTML and PsNetTools report"
+                h1 $HeaderCaption1
             }
 
         }
@@ -84,7 +137,6 @@ $HTML = html {
 
     body{
 
-        $test = Get-MWADataSet -Destination 'xing.de','xing.de','bing.com','swiss.ch','sbb.ch','sbb.ch','sbb.ch','my.ch'
         $test | ForEach-Object {
             $total += ($_.TcpTimeMs) + ($_.DigTimeMs)
         }
@@ -92,11 +144,12 @@ $HTML = html {
         div -Class "container" {
 
             p {
-                "List some result from PsNetTools queries"
+                $BodyDescription
             }
 
+            #Diagrams
             p {
-                h2 "PsNetTools summary"
+                h2 $BodyCaptionDiagram
             }
 
             div -Class "row align-items-center" {
@@ -115,41 +168,29 @@ $HTML = html {
 
             script -content {
 
-                $data   = $test | Group-Object TcpDestination
-                $yaxis  = $data | ForEach-Object {$_.Count}
-                $xaxis  = $data.Name
-                $colors = @("yellow","red","green","orange","blue")
-                
-                $dsp1   = New-PSHTMLChartPieDataSet -Data $yaxis -BackgroundColor $colors
-                New-PSHTMLChart -type pie -DataSet $dsp1 -title "Count of Tcp Tests" -Labels $xaxis -CanvasID $PieCanvasID 
+                #Pie Chart
+                $dsp1   = New-PSHTMLChartPieDataSet -Data $yaxisleft -BackgroundColor $colorsleft
+                New-PSHTMLChart -type pie -DataSet $dsp1 -title $diagramtitleleft -Labels $xaxisleft -CanvasID $PieCanvasID 
 
-                $data   = Format-MWADataSet -Object $test #| Group-Object TimeMs
-                $yaxis  = $data.TcpTimeMs
-                $xaxis  = $data.Name
-                $dsb1 = New-PSHTMLChartBarDataSet -Data $yaxis -label "TcpTimeMs" -backgroundColor 'blue' -hoverBackgroundColor 'magenta' -borderColor 'black' -hoverBorderColor 'black'
-                
-                $yaxis  = $data.DigTimeMs
-                $xaxis  = $data.Name
-                $dsb2 = New-PSHTMLChartBarDataSet -Data $yaxis -label "DigTimeMs" -backgroundColor 'green' -hoverBackgroundColor 'red' -borderColor 'black' -hoverBorderColor 'black'
-                
-                New-PSHTMLChart -type bar -DataSet @($dsb1, $dsb2) -title "Time in milliseconds" -Labels $xaxis -CanvasID $BarCanvasID 
+                #Bar Chart
+                $dsb1 = New-PSHTMLChartBarDataSet -Data $yaxisMiddle1 -label $LabelMiddle1 -backgroundColor 'blue' -hoverBackgroundColor 'magenta' -borderColor 'black' -hoverBorderColor 'black'
+                $dsb2 = New-PSHTMLChartBarDataSet -Data $yaxisMiddle2 -label $LabelMiddle2 -backgroundColor 'green' -hoverBackgroundColor 'red' -borderColor 'black' -hoverBorderColor 'black'
+                New-PSHTMLChart -type bar -DataSet @($dsb1, $dsb2) -title $DiagramTitleMiddle -Labels $xaxisMiddle -CanvasID $BarCanvasID 
 
-                $data   = $test | Group-Object TcpStatusDescription
-                $yaxis  = $data | ForEach-Object {$_.Count}
-                $xaxis  = $data.Name
-                $colors = @("CYAN","MAGENTA","YELLOW ","BLACK")
-
-                $dsd1 = New-PSHTMLChartDoughnutDataSet -Data $yaxis -backgroundcolor $colors -hoverbackgroundColor $Colors
-                New-PSHTMLChart -Type doughnut -DataSet $dsd1 -title "Amount of Tcp Results" -Labels $xaxis -CanvasID $DoughnutCanvasID 
+                #Doughnut Chart
+                $dsd1 = New-PSHTMLChartDoughnutDataSet -Data $yaxisRight -backgroundcolor $colorsRight -hoverbackgroundColor $ColorsRight
+                New-PSHTMLChart -Type doughnut -DataSet $dsd1 -title $DiagramTitleRight -Labels $xaxisRight -CanvasID $DoughnutCanvasID 
 
             }
         
+            #Table
             p {
-                h2 "PsNetTools details"
+                h2 $BodyCaptionTable
             }
 
             Table -Class "table table-responsive table-sm table-hover" -content {
 
+                #Table column heading
                 Thead -Class "thead-dark" {
 
                     Th {"TimeStamp"}
