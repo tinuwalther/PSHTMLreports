@@ -85,32 +85,41 @@ $BodyDescription    = "List some result from PsNetTools queries"
 $BodyCaptionDiagram = "PsNetTools summary"
 
 #diagram left
-$DiagramTitleLeft = "Count of Tcp Tests"
-$DiagramLeft      = $test | Group-Object TcpDestination
-$yaxisleft        = $DiagramLeft | ForEach-Object {$_.Count}
-$xaxisleft        = $DiagramLeft.Name
-$colorsleft       = @("yellow","red","green","orange","blue")
+$DiagramTitleLeft   = "Count of Tcp Tests"
+$DiagramCaptionLeft = "Test Destination"
+$DiagramLeft        = $test | Group-Object TcpDestination
+$yaxisleft          = $DiagramLeft | ForEach-Object {$_.Count}
+$xaxisleft          = $DiagramLeft.Name
+$colorsleft         = @("yellow","red","green","orange","blue")
 
 #diagram middle
-$DiagramTitleMiddle = "Time in milliseconds"
-$DiagramMiddle      = Format-MWADataSet -Object $test #| Group-Object TimeMs
-$LabelMiddle1       = "TcpTimeMs"
-$yaxisMiddle1       = $DiagramMiddle.TcpTimeMs
-$LabelMiddle2       = "DigTimeMs"
-$yaxisMiddle2       = $DiagramMiddle.DigTimeMs
-$xaxisMiddle        = $DiagramMiddle.Name
+$DiagramTitleMiddle   = "Time in milliseconds"
+$DiagramCaptionMiddle = "Test Time"
+$DiagramMiddle        = Format-MWADataSet -Object $test #| Group-Object TimeMs
+$LabelMiddle1         = "TcpTimeMs"
+$yaxisMiddle1         = $DiagramMiddle.TcpTimeMs
+$LabelMiddle2         = "DigTimeMs"
+$yaxisMiddle2         = $DiagramMiddle.DigTimeMs
+$xaxisMiddle          = $DiagramMiddle.Name
 
 #diagram right
-$DiagramTitleRight = "Count of Tcp Tests"
-$DiagramRight      = $test | Group-Object TcpStatusDescription
-$yaxisRight        = $DiagramRight | ForEach-Object {$_.Count}
-$xaxisRight        = $DiagramRight.Name
-$colorsRight       = @("CYAN","MAGENTA","YELLOW ","BLACK")
+$DiagramTitleRight   = "Count of Tcp Tests"
+$DiagramCaptionRight = "Test Results"
+$DiagramRight        = $test | Group-Object TcpStatusDescription
+$yaxisRight          = $DiagramRight | ForEach-Object {$_.Count}
+$xaxisRight          = $DiagramRight.Name
+$colorsRight         = @("CYAN","MAGENTA","YELLOW ","BLACK")
 
 #endregion
 
 #region table
 $BodyCaptionTable   = "PsNetTools details"
+
+$TableClasses = "table table-responsive table-sm table-hover"
+$TableHeaders = "thead-light"
+$columns      = @('TcpTimeStamp','TcpSucceeded','DigSucceeded','TcpPort','TcpDestination','DigIpV4Address','DigIpV6Address','TcpStatusDescription','TcpTimeMs','DigTimeMs')
+
+$topNav = a -Class "btn btn-outline-primary btn-sm" -href "#Summary" "Summary" -Attributes @{"role"="button"}
 #endregion
 
 #region footer
@@ -149,23 +158,25 @@ $HTML = html {
 
             #Diagrams
             p {
-                h2 $BodyCaptionDiagram
+                h2 $BodyCaptionDiagram -id "Summary"
             }
 
             div -Class "row align-items-center" {
 
                 div -Class "col-sm" {
                     canvas -Height 300px -Width 300px -Id $PieCanvasID {}
+                    p {$DiagramCaptionLeft}
                 }
                 div -Class "col-sm" {
                     canvas -Height 300px -Width 300px -Id $BarCanvasID {}
+                    p {$DiagramCaptionMiddle}
                 }
                 div -Class "col-sm" {
                     canvas -Height 300px -Width 300px -Id $DoughnutCanvasID {}
+                    p {$DiagramCaptionRight}
                 }
 
             }
-
             script -content {
 
                 #Pie Chart
@@ -183,71 +194,28 @@ $HTML = html {
 
             }
         
+            #Navigation
+            ul -Class "nav nav-tabs" {
+                li -Class "nav-item" {
+                    a -Class "nav-link active" -href "#Summary" "$($BodyCaptionDiagram)"
+                }
+                li -Class "nav-item" {
+                    a -Class "nav-link" -href "#navlink2" "$($BodyCaptionTable)"
+                }
+            }
+
             #Table
             p {
-                h2 $BodyCaptionTable
+                h2 $BodyCaptionTable -Id "navlink2"
             }
-
-            Table -Class "table table-responsive table-sm table-hover" -content {
-
-                #Table column heading
-                Thead -Class "thead-dark" {
-
-                    Th {"TimeStamp"}
-                    Th {"Tcp-/Dig Test"}
-                    Th {"TcpPort"}
-                    Th {"Target"}
-                    Th {"IpV4Address"}
-                    Th {"IpV6Address"}
-                    Th {"StatusDescription"}
-                    Th {"TcpTimeMs"}
-                    Th {"DigTimeMs"}
-
-                }
-
-                Tbody {
-
-                    $test | Sort-Object TcpTimeMS -Descending | ForEach-Object {
-
-                        tr {
-                            td {$_.TcpTimeStamp}
-                            td {"$($_.TcpSucceeded)/$($_.DigSucceeded)"}
-                            td {$_.TcpPort}
-                            td {$_.TcpDestination}
-                            td {
-                                if($_.DigSucceeded){
-                                    if($_.DigIpV4Address){
-                                        foreach($item in $_.DigIpV4Address){
-                                            $output += "$($item), "
-                                        }
-                                        if($output.EndsWith(', ')){$output.TrimEnd(', ')}
-                                    }
-                                }
-                                else{'Dig Test failed'}
-                            }
-                            td {
-                                if($_.DigSucceeded){
-                                    if($_.DigIpV6Address){
-                                        $_.DigIpV6Address
-                                    }
-                                }
-                                else{'Dig Test failed'}
-                            }
-                            td {$_.TcpStatusDescription}
-                            td {$_.TcpTimeMs}
-                            td {$_.DigTimeMs}
-                        }
-
-                    }
-
-                }
-
-            }
+            ConvertTo-PSHtmlTable -Object $test -Properties $columns -TableClass $TableClasses -TheadClass $TableHeaders
 
             p -Class "font-weight-bold" {
                 "The query for these {0} targets took a total of {1} milliseconds." -f $($test.count), $($total)
             }
-
+            p {
+                $topNav
+            }
         }
 
     }
