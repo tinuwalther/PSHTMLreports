@@ -25,6 +25,7 @@ function Get-MWADataSet{
         $nslookup = Test-PsNetDig -Destination $tping.Destination
         [PSCustomObject]@{
             
+            TcpDigStatus         = "$($tping.TcpSucceeded)/$($nslookup.Succeeded)"
             TcpSucceeded         = $tping.TcpSucceeded
             TcpPort              = $tping.TcpPort
             TcpTimeStamp         = $tping.TimeStamp
@@ -37,8 +38,8 @@ function Get-MWADataSet{
             DigSucceeded         = $nslookup.Succeeded
             DigInputString       = $nslookup.InputString
             DigDestination       = $nslookup.Destination
-            DigIpV4Address       = $nslookup.IpV4Address
-            DigIpV6Address       = $nslookup.IpV6Address
+            DigIpV4Address       = $nslookup.IpV4Address | ForEach-Object { "$($_)`n" }
+            DigIpV6Address       = $nslookup.IpV6Address | ForEach-Object { "$($_)`n" }
             DigTimeMs            = $nslookup.TimeMs
 
         }
@@ -74,7 +75,7 @@ $BarCanvasID         = "barcanvas"
 
 #region header
 $HeaderTitle        = "PSHTML-PsNetTools"
-$HeaderCaption1     = "Combined PSHTML and PsNetTools report"
+$HeaderCaption1     = "PSHTML and PsNetTools"
 #endregion
 
 #region body
@@ -86,7 +87,7 @@ $BodyCaptionDiagram = "PsNetTools summary"
 
 #diagram left
 $DiagramTitleLeft   = "Count of Tcp Tests"
-$DiagramCaptionLeft = "Test Destination"
+$DiagramCaptionLeft = "Test destination address"
 $DiagramLeft        = $test | Group-Object TcpDestination
 $yaxisleft          = $DiagramLeft | ForEach-Object {$_.Count}
 $xaxisleft          = $DiagramLeft.Name
@@ -94,7 +95,7 @@ $colorsleft         = @("yellow","red","green","orange","blue")
 
 #diagram middle
 $DiagramTitleMiddle   = "Time in milliseconds"
-$DiagramCaptionMiddle = "Test Time"
+$DiagramCaptionMiddle = "Test time milliseconds"
 $DiagramMiddle        = Format-MWADataSet -Object $test #| Group-Object TimeMs
 $LabelMiddle1         = "TcpTimeMs"
 $yaxisMiddle1         = $DiagramMiddle.TcpTimeMs
@@ -104,11 +105,11 @@ $xaxisMiddle          = $DiagramMiddle.Name
 
 #diagram right
 $DiagramTitleRight   = "Count of Tcp Tests"
-$DiagramCaptionRight = "Test Results"
+$DiagramCaptionRight = "Test results"
 $DiagramRight        = $test | Group-Object TcpStatusDescription
 $yaxisRight          = $DiagramRight | ForEach-Object {$_.Count}
 $xaxisRight          = $DiagramRight.Name
-$colorsRight         = @("CYAN","MAGENTA","YELLOW ","BLACK")
+$colorsRight         = @("red","green")
 
 #endregion
 
@@ -117,43 +118,40 @@ $BodyCaptionTable   = "PsNetTools details"
 
 $TableClasses = "table table-responsive table-sm table-hover"
 $TableHeaders = "thead-light"
-$columns      = @('TcpTimeStamp','TcpSucceeded','DigSucceeded','TcpPort','TcpDestination','DigIpV4Address','DigIpV6Address','TcpStatusDescription','TcpTimeMs','DigTimeMs')
+$columns      = @('TcpTimeStamp','TcpDigStatus','TcpPort','TcpDestination','DigIpV4Address','DigIpV6Address','TcpStatusDescription','TcpTimeMs','DigTimeMs')
 
 $topNav = a -Class "btn btn-outline-primary btn-sm" -href "#Summary" "Summary" -Attributes @{"role"="button"}
 #endregion
 
 #region footer
+$test | ForEach-Object {
+    $total += ($_.TcpTimeMs) + ($_.DigTimeMs)
+}
 #endregion
 
-
+#region HTML
 $HTML = html {
 
     head{
-
         title $HeaderTitle
         Write-PSHTMLAsset -Name Jquery
         Write-PSHTMLAsset -Name BootStrap
         Write-PSHTMLAsset -Name Chartjs
-
-        div -Class "container" {
-
-            p -Class "border" {
-                h1 $HeaderCaption1
-            }
-
-        }
     } 
 
     body{
 
-        $test | ForEach-Object {
-            $total += ($_.TcpTimeMs) + ($_.DigTimeMs)
-        }
-
         div -Class "container" {
 
-            p {
-                $BodyDescription
+            div -Class "jumbotron" -id "Summary" -Style "background-color:#66b5ff" {
+                div -Class "container" {
+                    h1 -Class "display-4 font-weight-bold" -Style "color:white" { 
+                        $HeaderCaption1
+                    }
+                    p -Class "lead" -Style "color:white" {
+                        $BodyDescription
+                    }
+                }
             }
 
             #Diagrams
@@ -231,8 +229,10 @@ $HTML = html {
 
     }
 }
+#endregion
 
 $Root = Split-Path -parent $PSCommandPath
 $Path = "$($Root)\example.html"
+
 $Html | Out-File -FilePath $Path -Encoding utf8
 Start-Process $Path 
